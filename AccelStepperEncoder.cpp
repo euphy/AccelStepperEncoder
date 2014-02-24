@@ -49,7 +49,7 @@ float AccelStepperEncoder::calculateEncoderTarget(long motorTarget)
 // Implements steps according to the current step interval
 // You must call this at least once per step
 // returns true if a step occurred
-boolean AccelStepperEncoder::runSpeed()
+boolean AccelStepperEncoder::oldRunSpeed()
 {
     // Dont do anything unless we actually have a step interval
     if (!_stepInterval)
@@ -60,76 +60,48 @@ boolean AccelStepperEncoder::runSpeed()
     unsigned long nextStepTime = _lastStepTime + _stepInterval;
     if (   ((nextStepTime >= _lastStepTime) && ((time >= nextStepTime) || (time < _lastStepTime)))
 	|| ((nextStepTime < _lastStepTime) && ((time >= nextStepTime) && (time < _lastStepTime))))
+
     {
-		// if the encoder witnessed the movement, then mark the step as taken
-		if (_useEncoderForPositioning)
-		{
-			step(_currentPos);
-			Serial.println("Step attempted.");
-			// check the encoder
-			float encPos = (float)readEnc();
-			// work out 
-			float encTarget = (float)_currentPos * _motorToEncRatio;
-/*			
-			Serial.print("After. _currentPos: ");
-			Serial.print(_currentPos);
-			Serial.print(", encPos: ");
-			Serial.print(encPos);
-			Serial.print(", encTarget: ");
-			Serial.println(encTarget);
-			
-			Serial.print("high value: ");
-			Serial.print(encTarget+_motorToEncRatio);
-			Serial.print(", low value: ");
-			Serial.println(encTarget-_motorToEncRatio);
-			delay(1);
-			*/
-			delay(1);
-			if ((encPos <= (encTarget+_motorToEncRatio)) && (encPos > (encTarget-_motorToEncRatio)))
-			{
-				Serial.println("Successful encoder Increment!");
-				if (_direction == DIRECTION_CW)	_currentPos += 1;
-				else _currentPos -= 1;
-			}
-			else
-			{
-				Serial.println("Unsuccessfully incremented, maybe a problem.");
-				if ((_direction == DIRECTION_CW && encPos > encTarget))
-				{ // we are AHEAD of where we should be going CW
-					_currentPos += 1;
-				}
-				else if(_direction == DIRECTION_CCW && encPos < encTarget)
-				{ // we are AHEAD of where we are going CCW
-					_currentPos -= 1;
-				}
-				else
-				{
-				}
-			}
-		}
-		else
-		{
-			step(_currentPos);
-			Serial.println("Step attempted.");
-			Serial.println("Increment!");
-			if (_direction == DIRECTION_CW)
-			{
-				// Clockwise
-				_currentPos += 1;
-			}
-			else
-			{
-				// Anticlockwise  
-				_currentPos -= 1;
-			}
-			_lastStepTime = time;
-		}
-		return true;
+	if (_direction == DIRECTION_CW)
+	{
+	    // Clockwise
+	    _currentPos += 1;
+	}
+	else
+	{
+	    // Anticlockwise  
+	    _currentPos -= 1;
+	}
+	step(_currentPos);
+
+	_lastStepTime = time;
+	return true;
     }
     else
     {
-		return false;
+	return false;
     }
+}
+
+boolean AccelStepperEncoder::runSpeed()
+{
+	boolean stepped = oldRunSpeed();
+
+	long sensedPosition = readEnc() * _motorToEncRatio;
+	Serial.print("Current pos motor: ");
+	Serial.print(currentPosition());
+	Serial.print(", Sensed pos: ");
+	Serial.println(sensedPosition);
+	
+	if (sensedPosition != currentPosition())
+	{
+		// remedial work
+		
+	}
+	
+	//setCurrentPosition(sensedPosition);
+	
+	return stepped;
 }
 
 float AccelStepperEncoder::calculateMotorToEncRatio(int calibrationCycles, int calibrationSteps)

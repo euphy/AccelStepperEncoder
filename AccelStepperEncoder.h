@@ -19,6 +19,7 @@ class AccelStepperEncoder : public AccelStepper
 		Encoder* getEncoder();
 		long readEnc();
 		void writeEnc(long value);
+		boolean oldRunSpeed();
 		boolean runSpeed();
 		void moveTo(long absolute);
 		float calculateMotorToEncRatio(int calibrationCycles=2, int calibrationSteps=1600);
