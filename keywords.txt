@@ -1,5 +1,5 @@
 #######################################
-# Syntax Coloring Map For AccelStepperEncoder
+# Syntax Coloring Map For AccelStepper
 #######################################
 
 #######################################
@@ -30,8 +30,6 @@ runToNewPosition	KEYWORD2
 disableOutputs	KEYWORD2
 enableOutputs	KEYWORD2
 setMinPulseWidth	KEYWORD2
-readEnc	KEYWORD2
-writeEnc	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
