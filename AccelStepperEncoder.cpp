@@ -5,7 +5,7 @@
 
 #include "AccelStepperEncoder.h"
 
-//#define DEBUG
+#define DEBUG
 #if 0
 // Some debugging assistance
 void dump(uint8_t* p, int l)
@@ -42,17 +42,14 @@ void AccelStepperEncoder::move(long relative)
 boolean AccelStepperEncoder::runSpeed()
 {
 	#ifdef DEBUG
-	Serial.print("Current pos motor: ");
-	Serial.print(_currentMotorPos);
-	Serial.print(", enc pos: ");
-	Serial.println(readEnc());
-	delay(5);
 	#endif
 	
     // Dont do anything unless we actually have a step interval
     if (!_stepInterval)
 	{
+		#ifdef DEBUG
 		Serial.print('.');
+		#endif
 		return false;
 	}
 		
@@ -144,25 +141,26 @@ void AccelStepperEncoder::computeNewSpeed()
     }
     else if (distanceTo < 0)
     {
-	// We are clockwise from the target
-	// Need to go anticlockwise from here, maybe decelerate
-	if (_n > 0)
-	{
-	    // Currently accelerating, need to decel now? Or maybe going the wrong way?
-	    if ((stepsToStop >= -distanceTo) || _direction == DIRECTION_CW)
-		_n = -stepsToStop; // Start deceleration
-	}
-	else if (_n < 0)
-	{
-	    // Currently decelerating, need to accel again?
-	    if ((stepsToStop < -distanceTo) && _direction == DIRECTION_CCW)
-		_n = -_n; // Start accceleration
-	}
+		// We are clockwise from the target
+		// Need to go anticlockwise from here, maybe decelerate
+		if (_n > 0)
+		{
+			// Currently accelerating, need to decel now? Or maybe going the wrong way?
+			if ((stepsToStop >= -distanceTo) || _direction == DIRECTION_CW)
+			_n = -stepsToStop; // Start deceleration
+		}
+		else if (_n < 0)
+		{
+			// Currently decelerating, need to accel again?
+			if ((stepsToStop < -distanceTo) && _direction == DIRECTION_CCW)
+			_n = -_n; // Start accceleration
+		}
     }
 
     // Need to accelerate or decelerate
     if (_n == 0)
     {
+	Serial.println("_n is zero.");
 	// First step from stopped
 	_cn = _c0;
 	_direction = (distanceTo > 0) ? DIRECTION_CW : DIRECTION_CCW;
@@ -173,6 +171,7 @@ void AccelStepperEncoder::computeNewSpeed()
 	_cn = _cn - ((2.0 * _cn) / ((4.0 * _n) + 1)); // Equation 13
 	_cn = max(_cn, _cmin); 
     }
+	
     _n++;
     _stepInterval = _cn;
     _speed = 1000000.0 / _cn;
@@ -188,6 +187,8 @@ void AccelStepperEncoder::computeNewSpeed()
     Serial.println(_stepInterval);
     Serial.println(distanceTo);
     Serial.println(stepsToStop);
+	Serial.println(_currentMotorPos);
+	Serial.println(readEnc());
     Serial.println("-----");
 #endif
 }
