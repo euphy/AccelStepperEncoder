@@ -5,7 +5,8 @@
 
 #include "AccelStepperEncoder.h"
 
-#define DEBUG
+//#define DEBUG
+
 #if 0
 // Some debugging assistance
 void dump(uint8_t* p, int l)
@@ -14,8 +15,8 @@ void dump(uint8_t* p, int l)
 
     for (i = 0; i < l; i++)
     {
-		Serial.print(p[i], HEX);
-		Serial.print(" ");
+	Serial.print(p[i], HEX);
+	Serial.print("");
     }
     Serial.println("");
 }
@@ -23,17 +24,23 @@ void dump(uint8_t* p, int l)
 
 void AccelStepperEncoder::moveTo(long absolute)
 {
-    if (_targetEncPos != absolute)
+    if (_targetPos != absolute)
     {
-		_targetEncPos = absolute;
+		_targetPos = absolute;
+		_encoderTargetPos = calculateEncoderPositionForMotor(_targetPos);
 		computeNewSpeed();
 		// compute new n?
     }
 }
 
+float AccelStepperEncoder::calculateEncoderPositionForMotor(long motorPos) 
+{
+	return (float)motorPos / _motorToEncoderRatio;
+}
+
 void AccelStepperEncoder::move(long relative)
 {
-    moveTo(readEnc() + relative);
+    moveTo(_currentPos + relative);
 }
 
 // Implements steps according to the current step interval
@@ -41,75 +48,64 @@ void AccelStepperEncoder::move(long relative)
 // returns true if a step occurred
 boolean AccelStepperEncoder::runSpeed()
 {
-	#ifdef DEBUG
-	#endif
-	
     // Dont do anything unless we actually have a step interval
     if (!_stepInterval)
-	{
-		#ifdef DEBUG
-		Serial.print('.');
-		#endif
 		return false;
-	}
-		
+
     unsigned long time = micros();
     // Gymnastics to detect wrapping of either the nextStepTime and/or the current time
     unsigned long nextStepTime = _lastStepTime + _stepInterval;
-	
     if (   ((nextStepTime >= _lastStepTime) && ((time >= nextStepTime) || (time < _lastStepTime)))
 	|| ((nextStepTime < _lastStepTime) && ((time >= nextStepTime) && (time < _lastStepTime))))
     {
-		step(_currentMotorPos);
 		if (_direction == DIRECTION_CW)
 		{
 			// Clockwise
-			_currentMotorPos += 1;
+			_currentPos += 1;
 		}
 		else
 		{
 			// Anticlockwise  
-			_currentMotorPos -= 1;
+			_currentPos -= 1;
 		}
-		
+		step(_currentPos);
+
 		_lastStepTime = time;
 		return true;
     }
     else
     {
-		Serial.print('_');
 		return false;
     }
 }
 
 long AccelStepperEncoder::distanceToGo()
 {
-    return _targetEncPos - readEnc();
+    return _targetPos - _currentPos;
 }
 
 long AccelStepperEncoder::targetPosition()
 {
-    return _targetEncPos;
+    return _targetPos;
 }
 
 long AccelStepperEncoder::currentPosition()
 {
-    return readEnc();
+    return _currentPos;
 }
 
 // Useful during initialisations or after initial positioning
 // Sets speed to 0
 void AccelStepperEncoder::setCurrentPosition(long position)
 {
-    _targetEncPos = position;
-	writeEnc(position);
+    _targetPos = _currentPos = position;
     _n = 0;
     _stepInterval = 0;
 }
 
 void AccelStepperEncoder::computeNewSpeed()
 {
-    long distanceTo = distanceToGo(); // +ve is clockwise from curent location
+    long distanceTo = distanceToGo(); // +ve is clockwise from c urent location
 
     long stepsToStop = (long)((_speed * _speed) / (2.0 * _acceleration)); // Equation 16
 
@@ -141,26 +137,25 @@ void AccelStepperEncoder::computeNewSpeed()
     }
     else if (distanceTo < 0)
     {
-		// We are clockwise from the target
-		// Need to go anticlockwise from here, maybe decelerate
-		if (_n > 0)
-		{
-			// Currently accelerating, need to decel now? Or maybe going the wrong way?
-			if ((stepsToStop >= -distanceTo) || _direction == DIRECTION_CW)
-			_n = -stepsToStop; // Start deceleration
-		}
-		else if (_n < 0)
-		{
-			// Currently decelerating, need to accel again?
-			if ((stepsToStop < -distanceTo) && _direction == DIRECTION_CCW)
-			_n = -_n; // Start accceleration
-		}
+	// We are clockwise from the target
+	// Need to go anticlockwise from here, maybe decelerate
+	if (_n > 0)
+	{
+	    // Currently accelerating, need to decel now? Or maybe going the wrong way?
+	    if ((stepsToStop >= -distanceTo) || _direction == DIRECTION_CW)
+		_n = -stepsToStop; // Start deceleration
+	}
+	else if (_n < 0)
+	{
+	    // Currently decelerating, need to accel again?
+	    if ((stepsToStop < -distanceTo) && _direction == DIRECTION_CCW)
+		_n = -_n; // Start accceleration
+	}
     }
 
     // Need to accelerate or decelerate
     if (_n == 0)
     {
-	Serial.println("_n is zero.");
 	// First step from stopped
 	_cn = _c0;
 	_direction = (distanceTo > 0) ? DIRECTION_CW : DIRECTION_CCW;
@@ -171,7 +166,6 @@ void AccelStepperEncoder::computeNewSpeed()
 	_cn = _cn - ((2.0 * _cn) / ((4.0 * _n) + 1)); // Equation 13
 	_cn = max(_cn, _cmin); 
     }
-	
     _n++;
     _stepInterval = _cn;
     _speed = 1000000.0 / _cn;
@@ -179,16 +173,27 @@ void AccelStepperEncoder::computeNewSpeed()
 	_speed = -_speed;
 
 #ifdef DEBUG
+    Serial.print("_speed: ");
     Serial.println(_speed);
+    Serial.print("_acceleration: ");
     Serial.println(_acceleration);
+    Serial.print("_cn: ");
     Serial.println(_cn);
+    Serial.print("_c0: ");
     Serial.println(_c0);
+    Serial.print("_n: ");
     Serial.println(_n);
+    Serial.print("_stepInterval: ");
     Serial.println(_stepInterval);
+    Serial.print("distanceTo: ");
     Serial.println(distanceTo);
+    Serial.print("stepsToStop: ");
     Serial.println(stepsToStop);
-	Serial.println(_currentMotorPos);
+    Serial.print("_currentPos: ");
+    Serial.println(_currentPos);
+	Serial.print("readEnc(): ");
 	Serial.println(readEnc());
+	
     Serial.println("-----");
 #endif
 }
@@ -199,16 +204,70 @@ void AccelStepperEncoder::computeNewSpeed()
 // returns true if the motor is still running to the target position.
 boolean AccelStepperEncoder::run()
 {
-    if (runSpeed())
+    if (runSpeed()) 
+	{
 		computeNewSpeed();
+		float dev = computeDeviation();
+		correctDeviation(dev);
+	}
     return _speed != 0.0 || distanceToGo() != 0;
 }
 
-AccelStepperEncoder::AccelStepperEncoder(uint8_t interface, uint8_t pin1, uint8_t pin2, uint8_t pin3, uint8_t pin4, Encoder *enc, bool enable)
+// Look at motor position vs actual position, and correct motor position if necessary.
+float AccelStepperEncoder::computeDeviation()
+{
+	float expectedEncPos = calculateEncoderPositionForMotor(_currentPos);
+	float actualEncPos = readEnc();
+	float deviation = actualEncPos - expectedEncPos;
+	
+	if (deviation > maxDeviation) maxDeviation = deviation;
+	else if (deviation < minDeviation) minDeviation = deviation;
+
+#ifdef DEBUG
+    Serial.print("expectedEncPos: ");
+    Serial.println(expectedEncPos);
+    Serial.print("actualEncPos: ");
+    Serial.println(actualEncPos);
+    Serial.print("deviation: ");
+    Serial.print(deviation);
+    Serial.print(" (min: ");
+    Serial.print(minDeviation);
+    Serial.print(", max: ");
+    Serial.print(maxDeviation);
+	Serial.println(")");
+    Serial.println("~~~~~");
+#endif
+	return deviation;
+}
+
+void AccelStepperEncoder::correctDeviation(float deviation)
+{
+	if (abs(deviation) > acceptableDeviation)
+	{
+		synchroniseMotorWithEncoder();
+	}
+	else 
+	{
+#ifdef DEBUG
+    Serial.print("Deviation is not enough to fix: ");
+    Serial.println(deviation);
+#endif	
+	}
+}
+
+/*
+Resets the motor position to reflect the actual position (as got via encoder)
+*/
+void AccelStepperEncoder::synchroniseMotorWithEncoder() 
+{
+	_currentPos = readEnc() * _motorToEncoderRatio;
+}
+
+AccelStepperEncoder::AccelStepperEncoder(uint8_t interface, uint8_t pin1, uint8_t pin2, uint8_t pin3, uint8_t pin4, bool enable)
 {
     _interface = interface;
-    _targetEncPos = 0L;
-	_currentMotorPos = 0L;
+    _currentPos = 0;
+    _targetPos = 0;
     _speed = 0.0;
     _maxSpeed = 1.0;
     _acceleration = 1.0;
@@ -219,9 +278,8 @@ AccelStepperEncoder::AccelStepperEncoder(uint8_t interface, uint8_t pin1, uint8_
     _lastStepTime = 0;
     _pin[0] = pin1;
     _pin[1] = pin2;
-    _pin[2] = 0;
-    _pin[3] = 0;
-	_enc = enc;
+    _pin[2] = pin3;
+    _pin[3] = pin4;
 
     // NEW
     _n = 0;
@@ -235,16 +293,13 @@ AccelStepperEncoder::AccelStepperEncoder(uint8_t interface, uint8_t pin1, uint8_
 	_pinInverted[i] = 0;
     if (enable)
 	enableOutputs();
-	Serial.begin(57600);
-	writeEnc(0L);
-	
 }
 
-AccelStepperEncoder::AccelStepperEncoder(void (*forward)(), void (*backward)(), Encoder *enc)
+AccelStepperEncoder::AccelStepperEncoder(void (*forward)(), void (*backward)())
 {
     _interface = 0;
-    _currentMotorPos = 0;
-    _targetEncPos = 0;
+    _currentPos = 0;
+    _targetPos = 0;
     _speed = 0.0;
     _maxSpeed = 1.0;
     _acceleration = 1.0;
@@ -257,8 +312,6 @@ AccelStepperEncoder::AccelStepperEncoder(void (*forward)(), void (*backward)(), 
     _pin[1] = 0;
     _pin[2] = 0;
     _pin[3] = 0;
-	_enc = enc;
-	
     _forward = forward;
     _backward = backward;
 
@@ -610,19 +663,18 @@ void AccelStepperEncoder::setPinsInverted(bool pin1Invert, bool pin2Invert, bool
 // Blocks until the target position is reached and stopped
 void AccelStepperEncoder::runToPosition()
 {
-    while (run());
+    while (run())
+	;
 }
 
 boolean AccelStepperEncoder::runSpeedToPosition()
 {
-	Serial.print("heheh");
-    if (_targetEncPos == readEnc())
-		return false;
-		
-    if (_targetEncPos >readEnc())
-		_direction = DIRECTION_CW;
+    if (_targetPos == _currentPos)
+	return false;
+    if (_targetPos >_currentPos)
+	_direction = DIRECTION_CW;
     else
-		_direction = DIRECTION_CCW;
+	_direction = DIRECTION_CCW;
     return runSpeed();
 }
 
@@ -645,9 +697,11 @@ void AccelStepperEncoder::stop()
     }
 }
 
-void AccelStepperEncoder::addEncoder(Encoder *enc)
+void AccelStepperEncoder::addEncoder(Encoder *enc, float ratio)
 {
+	_motorToEncoderRatio = ratio;
 	_enc = enc;
+	writeEnc(0);
 }
 Encoder* AccelStepperEncoder::getEncoder()
 {

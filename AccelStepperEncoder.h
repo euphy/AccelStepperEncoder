@@ -265,7 +265,7 @@ public:
     /// to pin 5.
     /// \param[in] enable If this is true (the default), enableOutpuys() will be called to enable
     /// the output pins at construction time.
-    AccelStepperEncoder(uint8_t interface = AccelStepperEncoder::DRIVER, uint8_t pin1 = 2, uint8_t pin2 = 3,  uint8_t pin3 = 4, uint8_t pin4 = 5, Encoder *enc = NULL, bool enable = true);
+    AccelStepperEncoder(uint8_t interface = AccelStepperEncoder::FULL4WIRE, uint8_t pin1 = 2, uint8_t pin2 = 3, uint8_t pin3 = 4, uint8_t pin4 = 5, bool enable = true);
 
     /// Alternate Constructor which will call your own functions for forward and backward steps. 
     /// You can have multiple simultaneous steppers, all moving
@@ -275,7 +275,7 @@ public:
     /// Any motor initialization should happen before hand, no pins are used or initialized.
     /// \param[in] forward void-returning procedure that will make a forward step
     /// \param[in] backward void-returning procedure that will make a backward step
-    AccelStepperEncoder(void (*forward)(), void (*backward)(), Encoder *enc = NULL);
+    AccelStepperEncoder(void (*forward)(), void (*backward)());
     
     /// Set the target position. The run() function will try to move the motor (at most one step per call)
     /// from the current position to the target position set by the most
@@ -413,11 +413,18 @@ public:
     /// \param[in] enableInvert    True for inverted enable pin, false (default) for non-inverted
     void    setPinsInverted(bool pin1Invert, bool pin2Invert, bool pin3Invert, bool pin4Invert, bool enableInvert);
 	
-	void addEncoder(Encoder *enc);
+	void addEncoder(Encoder *enc, float ratio);
 	Encoder* getEncoder();
 	long readEnc();
 	void writeEnc(long value);
+	float calculateEncoderPositionForMotor(long motorPos);
+	float computeDeviation();
+	float maxDeviation = 0.0f;
+	float minDeviation = 0.0f;
+	float acceptableDeviation = 10.0;
 	
+	void correctDeviation(float deviation);
+	void synchroniseMotorWithEncoder();
 
 protected:
 
@@ -516,9 +523,9 @@ protected:
     long           _currentPos;    // Steps
 
     /// The target position in steps. The AccelStepperEncoder library will move the
-    /// motor from the _currentPos to the _targetEncPos, taking into account the
+    /// motor from the _currentPos to the _targetPos, taking into account the
     /// max speed, acceleration and deceleration
-    long           _targetEncPos;     // Steps
+    long           _targetPos;     // Steps
 
     /// The current motos speed in steps per second
     /// Positive is clockwise
@@ -574,7 +581,7 @@ protected:
 
     /// Current direction motor is spinning in
     boolean _direction; // 1 == CW
-	
+
 	/// instance of encoder
 	Encoder *_enc;
 
@@ -582,6 +589,9 @@ protected:
 	/// pattern to step with next.
 	long _currentMotorPos;
 	
+	float _encoderTargetPos;
+	float _motorToEncoderRatio;
+
 
 };
 
