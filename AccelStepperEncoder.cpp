@@ -27,13 +27,13 @@ void AccelStepperEncoder::moveTo(long absolute)
     if (_targetPos != absolute)
     {
 		_targetPos = absolute;
-		_encoderTargetPos = calculateEncoderPositionForMotor(_targetPos);
+		_encoderTargetPos = encoderPositionForMotor(_targetPos);
 		computeNewSpeed();
 		// compute new n?
     }
 }
 
-float AccelStepperEncoder::calculateEncoderPositionForMotor(long motorPos) 
+float AccelStepperEncoder::encoderPositionForMotor(long motorPos) 
 {
 	return (float)motorPos / _motorToEncoderRatio;
 }
@@ -216,7 +216,7 @@ boolean AccelStepperEncoder::run()
 // Look at motor position vs actual position, and correct motor position if necessary.
 float AccelStepperEncoder::computeDeviation()
 {
-	float expectedEncPos = calculateEncoderPositionForMotor(_currentPos);
+	float expectedEncPos = encoderPositionForMotor(_currentPos);
 	float actualEncPos = readEnc();
 	float deviation = actualEncPos - expectedEncPos;
 	

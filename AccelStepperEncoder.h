@@ -417,7 +417,7 @@ public:
 	Encoder* getEncoder();
 	long readEnc();
 	void writeEnc(long value);
-	float calculateEncoderPositionForMotor(long motorPos);
+	float encoderPositionForMotor(long motorPos);
 	float computeDeviation();
 	float maxDeviation = 0.0f;
 	float minDeviation = 0.0f;
