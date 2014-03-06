@@ -261,6 +261,8 @@ Resets the motor position to reflect the actual position (as got via encoder)
 void AccelStepperEncoder::synchroniseMotorWithEncoder() 
 {
 	_currentPos = readEnc() * _motorToEncoderRatio;
+	_targetPos = _currentPos;
+	setSpeed(0);
 }
 
 AccelStepperEncoder::AccelStepperEncoder(uint8_t interface, uint8_t pin1, uint8_t pin2, uint8_t pin3, uint8_t pin4, bool enable)
