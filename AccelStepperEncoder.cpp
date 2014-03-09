@@ -172,7 +172,7 @@ void AccelStepperEncoder::computeNewSpeed()
     if (_direction == DIRECTION_CCW)
 	_speed = -_speed;
 
-#ifdef DEBUG
+#ifdef DEBUG_ACCEL
     Serial.print("_speed: ");
     Serial.println(_speed);
     Serial.print("_acceleration: ");
@@ -207,8 +207,6 @@ boolean AccelStepperEncoder::run()
     if (runSpeed()) 
 	{
 		computeNewSpeed();
-		float dev = computeDeviation();
-		correctDeviation(dev);
 	}
     return _speed != 0.0 || distanceToGo() != 0;
 }
@@ -223,7 +221,7 @@ float AccelStepperEncoder::computeDeviation()
 	if (deviation > maxDeviation) maxDeviation = deviation;
 	else if (deviation < minDeviation) minDeviation = deviation;
 
-#ifdef DEBUG
+#ifdef DEBUG_DEV
     Serial.print("expectedEncPos: ");
     Serial.println(expectedEncPos);
     Serial.print("actualEncPos: ");
@@ -240,19 +238,25 @@ float AccelStepperEncoder::computeDeviation()
 	return deviation;
 }
 
-void AccelStepperEncoder::correctDeviation(float deviation)
+float AccelStepperEncoder::correctDeviation()
 {
+	float deviation = computeDeviation();
 	if (abs(deviation) > acceptableDeviation)
 	{
+#ifdef DEBUG
+    Serial.print("CORRECTING DEVIATION!");
+    Serial.println(deviation);
+#endif	
 		synchroniseMotorWithEncoder();
 	}
 	else 
 	{
 #ifdef DEBUG
-    Serial.print("Deviation is not enough to fix: ");
-    Serial.println(deviation);
+    //Serial.print("Deviation is not enough to fix: ");
+    //Serial.println(deviation);
 #endif	
 	}
+	return deviation;
 }
 
 /*
@@ -260,9 +264,18 @@ Resets the motor position to reflect the actual position (as got via encoder)
 */
 void AccelStepperEncoder::synchroniseMotorWithEncoder() 
 {
+#ifdef DEBUG
+    Serial.print("CurrentPos was: ");
+    Serial.print(_currentPos);
+#endif	
 	_currentPos = readEnc() * _motorToEncoderRatio;
+#ifdef DEBUG
+	Serial.print(", is now set to: ");
+	Serial.println(_currentPos);
+#endif	
 	_targetPos = _currentPos;
-	setSpeed(0);
+
+	//setSpeed(0);
 }
 
 AccelStepperEncoder::AccelStepperEncoder(uint8_t interface, uint8_t pin1, uint8_t pin2, uint8_t pin3, uint8_t pin4, bool enable)

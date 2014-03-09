@@ -423,7 +423,7 @@ public:
 	float minDeviation = 0.0f;
 	float acceptableDeviation = 10.0;
 	
-	void correctDeviation(float deviation);
+	float correctDeviation();
 	void synchroniseMotorWithEncoder();
 
 protected:
